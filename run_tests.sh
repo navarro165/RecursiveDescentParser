@@ -1,11 +1,14 @@
 #!/bin/bash
 
-# compile program
+# Compile the program
 clang++ -std=c++11 -Wall *.cc -o lexer
 if [ $? -ne 0 ]; then
     echo "Compilation failed."
     exit 1
 fi
+
+passed_count=0
+failed_count=0
 
 # Run tests and compare results
 echo "####################################"
@@ -17,8 +20,10 @@ for test in tests/*.txt; do
         diff_output=$(diff -u <(echo "$actual_output") "$expected")
         if [ $? -eq 0 ]; then
             echo "$test: PASSED"
+            ((passed_count++))
         else
             echo "$test: FAILED"
+            ((failed_count++))
             echo "------------------------------------"
             echo "Input:"
             cat "$test"
@@ -35,7 +40,12 @@ for test in tests/*.txt; do
         fi
     else
         echo "$test: No expected output found!"
+        ((failed_count++))
     fi
     echo ""
 done
+echo "####################################"
+echo "Summary:"
+echo "Tests Passed: $passed_count"
+echo "Tests Failed: $failed_count"
 echo "####################################"
