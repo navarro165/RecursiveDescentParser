@@ -1,8 +1,3 @@
-/*
- * Copyright (C) Rida Bazzi, 2016
- *
- * Do not share this file with anyone
- */
 #ifndef __LEXER__H__
 #define __LEXER__H__
 
@@ -14,15 +9,10 @@
 // ------- token types -------------------
 
 typedef enum { END_OF_FILE = 0,
-    IF, WHILE, DO, THEN, PRINT,
-    PLUS, MINUS, DIV, MULT,
+    PUBLIC, PRIVATE,
     EQUAL, COLON, COMMA, SEMICOLON,
-    LBRAC, RBRAC, LPAREN, RPAREN,
-    NOTEQUAL, GREATER, LESS, LTEQ, GTEQ,
-    DOT, NUM, ID, ERROR,
-    REALNUM, BASE08NUM, BASE16NUM
+    LBRACE, RBRACE, ID, ERROR
 } TokenType;
-
 
 class Token {
   public:
@@ -38,11 +28,6 @@ class LexicalAnalyzer {
     Token GetToken();
     TokenType UngetToken(Token);
     LexicalAnalyzer();
-    bool ScanBase16Num(Token &t);
-    bool ScanBase08Num(Token &t);
-    bool ScanRealNum(Token &t);
-    bool ScanNum(Token &t);
-    bool ScanZero(Token &t);
 
   private:
     std::vector<Token> tokens;
@@ -51,10 +36,10 @@ class LexicalAnalyzer {
     InputBuffer input;
 
     bool SkipSpace();
+    bool SkipComments();
     bool IsKeyword(std::string);
     TokenType FindKeywordIndex(std::string);
     Token ScanIdOrKeyword();
-    Token ScanNumber();
 };
 
 #endif  //__LEXER__H__
