@@ -1,6 +1,5 @@
 # Recursive Descent Parser
 
-## Project: Recursive Descent Parser  
 **Course:** CSE340  
 **Project 2: Parsing**  
 
