@@ -45,12 +45,12 @@ bool LexicalAnalyzer::SkipSpace(){
     bool space_encountered = false;
 
     input.GetChar(c);
-    line_no += (c == '\n');
-
     while (!input.EndOfInput() && isspace(c)) {
         space_encountered = true;
+        if (c == '\n') {
+            line_no++;
+        }
         input.GetChar(c);
-        line_no += (c == '\n');
     }
 
     if (!input.EndOfInput()) {
@@ -68,7 +68,9 @@ bool LexicalAnalyzer::SkipComments() {
             while (c != '\n' && !input.EndOfInput()) {
                 input.GetChar(c);
             }
-            line_no++;
+            if (c == '\n') {
+                line_no++;
+            }
             return true;
         } else {
             input.UngetChar(c);
@@ -196,14 +198,14 @@ vector<string> assignments;
 
 void ParseProgram();
 void ParseGlobalVariables();
-void ParseVarDeclList(string access_type);
-void ParseVariableList(string access_type);
+bool ParseVarDeclList(string access_type);
+bool ParseVariableList(string access_type);
 void ParseScopeList();
 void ParseScope();
 void ParseScopeContent();
 void ParseVisibilitySections();
 void ParseVisibilitySection();
-void ParseVariableListWithVisibility(string access_type);
+bool ParseVariableListWithVisibility(string access_type);
 void ParseAssignmentList();
 void ParseAssignment();
 string ResolveVariable(string variableName);
@@ -211,22 +213,59 @@ string ResolveVariable(string variableName);
 void ParseProgram() {
     ParseGlobalVariables();
     ParseScopeList();
-}
-
-void ParseGlobalVariables() {
-    ParseVarDeclList("public");
-}
-
-void ParseVarDeclList(string access_type) {
-    ParseVariableList(access_type);
     token = lexer.GetToken();
-    if (token.token_type != SEMICOLON) {
-        cerr << "Syntax Error: Expected ';' at line " << token.line_no << endl;
+    if (token.token_type != END_OF_FILE) {
+        cout << "Syntax Error" << endl;
         exit(1);
     }
 }
 
-void ParseVariableList(string access_type) {
+void ParseGlobalVariables() {
+    Token firstToken = lexer.GetToken();
+    Token secondToken = lexer.GetToken();
+    lexer.UngetToken(secondToken);
+    lexer.UngetToken(firstToken);
+
+    if (firstToken.token_type == ID && (secondToken.token_type == COMMA || secondToken.token_type == SEMICOLON)) {
+        if (!ParseVarDeclList("public")) {
+            // continue, no glob vars
+        }
+    }
+    // parse scopes
+}
+
+
+bool ParseVarDeclList(string access_type) {
+    Token firstToken = lexer.GetToken();
+    if (firstToken.token_type == ID) {
+        Token secondToken = lexer.GetToken();
+        if (secondToken.token_type == COMMA || secondToken.token_type == SEMICOLON) {
+            lexer.UngetToken(secondToken);
+            lexer.UngetToken(firstToken);
+            if (ParseVariableList(access_type)) {
+                token = lexer.GetToken();
+                if (token.token_type != SEMICOLON) {
+                    cout << "Syntax Error" << endl;
+                    exit(1);
+                }
+                return true;
+            } else {
+                return false;
+            }
+        } else {
+            // not a variable
+            lexer.UngetToken(secondToken);
+            lexer.UngetToken(firstToken);
+            return false;
+        }
+    } else {
+        lexer.UngetToken(firstToken);
+        return false;
+    }
+}
+
+
+bool ParseVariableList(string access_type) {
     token = lexer.GetToken();
     if (token.token_type == ID) {
         // add to symbol table
@@ -238,13 +277,14 @@ void ParseVariableList(string access_type) {
         token = lexer.GetToken();
 
         if (token.token_type == COMMA) {
-            ParseVariableList(access_type);
+            return ParseVariableList(access_type);
         } else {
             lexer.UngetToken(token);
+            return true;
         }
     } else {
-        cerr << "Syntax Error: Expected ID at line " << token.line_no << endl;
-        exit(1);
+        lexer.UngetToken(token);
+        return false;
     }
 }
 
@@ -269,7 +309,6 @@ void ParseScopeList() {
     }
 }
 
-
 void ParseScope() {
     token = lexer.GetToken();
     if (token.token_type == ID) {
@@ -280,16 +319,16 @@ void ParseScope() {
             ParseScopeContent();
             token = lexer.GetToken();
             if (token.token_type != RBRACE) {
-                cerr << "Syntax Error: Expected '}' at line " << token.line_no << endl;
+                cout << "Syntax Error" << endl;
                 exit(1);
             }
             scopeStack.pop_back();
         } else {
-            cerr << "Syntax Error: Expected '{' at line " << token.line_no << endl;
+            cout << "Syntax Error" << endl;
             exit(1);
         }
     } else {
-        cerr << "Syntax Error: Expected ID at line " << token.line_no << endl;
+        cout << "Syntax Error" << endl;
         exit(1);
     }
 }
@@ -299,7 +338,6 @@ void ParseScopeContent() {
     ParseScopeList();
     ParseAssignmentList();
 }
-
 
 void ParseVisibilitySections() {
     token = lexer.GetToken();
@@ -319,25 +357,28 @@ void ParseVisibilitySection() {
     } else if (token.token_type == PRIVATE) {
         access_type = "private";
     } else {
-        cerr << "Syntax Error: Expected 'public' or 'private' at line " << token.line_no << endl;
+        cout << "Syntax Error" << endl;
         exit(1);
     }
 
     token = lexer.GetToken();
     if (token.token_type == COLON) {
-        ParseVariableListWithVisibility(access_type);
+        if (!ParseVariableListWithVisibility(access_type)) {
+            cout << "Syntax Error" << endl;
+            exit(1);
+        }
         token = lexer.GetToken();
         if (token.token_type != SEMICOLON) {
-            cerr << "Syntax Error: Expected ';' at line " << token.line_no << endl;
+            cout << "Syntax Error" << endl;
             exit(1);
         }
     } else {
-        cerr << "Syntax Error: Expected ':' at line " << token.line_no << endl;
+        cout << "Syntax Error" << endl;
         exit(1);
     }
 }
 
-void ParseVariableListWithVisibility(string access_type) {
+bool ParseVariableListWithVisibility(string access_type) {
     token = lexer.GetToken();
     if (token.token_type == ID) {
         // add to symbol table
@@ -345,18 +386,18 @@ void ParseVariableListWithVisibility(string access_type) {
         variableInfo.name = token.lexeme;
         variableInfo.scope = (scopeStack.empty() ? "::" : scopeStack.back());
         variableInfo.access_type = access_type;
-        
         symbolTable.push_back(variableInfo);
         token = lexer.GetToken();
 
         if (token.token_type == COMMA) {
-            ParseVariableListWithVisibility(access_type);
+            return ParseVariableListWithVisibility(access_type);
         } else {
             lexer.UngetToken(token);
+            return true;
         }
     } else {
-        cerr << "Syntax Error: Expected ID at line " << token.line_no << endl;
-        exit(1);
+        lexer.UngetToken(token);
+        return false;
     }
 }
 
@@ -381,7 +422,6 @@ void ParseAssignmentList() {
     }
 }
 
-
 void ParseAssignment() {
     token = lexer.GetToken();
     if (token.token_type == ID) {
@@ -397,29 +437,23 @@ void ParseAssignment() {
                     string resolved_rhs = ResolveVariable(rhs);
                     assignments.push_back(resolved_lhs + " = " + resolved_rhs);
                 } else {
-                    cerr << "Syntax Error: Expected ';' at line " << token.line_no << endl;
-                    exit(1);
+                    cout << "Syntax Error" << endl;
                 }
             } else {
-                cerr << "Syntax Error: Expected ID at line " << token.line_no << endl;
-                exit(1);
+                cout << "Syntax Error" << endl;
             }
         } else {
-            cerr << "Syntax Error: Expected '=' at line " << token.line_no << endl;
-            exit(1);
+            cout << "Syntax Error" << endl;
         }
     } else {
-        cerr << "Syntax Error: Expected ID at line " << token.line_no << endl;
-        exit(1);
+        cout << "Syntax Error" << endl;
     }
+    exit(1);
 }
 
-
 string ResolveVariable(string variableName) {
-    
-    // search in all scopes
-    auto scopeIt = scopeStack.rbegin();
-    for (; scopeIt != scopeStack.rend(); ++scopeIt) {
+    // start on current scope, then check the rest
+    for (auto scopeIt = scopeStack.rbegin(); scopeIt != scopeStack.rend(); ++scopeIt) {
         string scopeName = *scopeIt;
 
         // search in scope
@@ -429,11 +463,11 @@ string ResolveVariable(string variableName) {
                     // can access in current scope
                     return scopeName + "." + variableName;
                 } else if (variableInfo.access_type == "public") {
-                    // can access variagble in outer scope, public
+                    // can access variable in outer scope, public
                     return scopeName + "." + variableName;
                 } else {
                     // cant access variable from outer scope, private
-                    // keep searching outer scopes
+                    // continue searching outer scopes
                     break;
                 }
             }
