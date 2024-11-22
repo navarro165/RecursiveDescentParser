@@ -438,17 +438,20 @@ void ParseAssignment() {
                     assignments.push_back(resolved_lhs + " = " + resolved_rhs);
                 } else {
                     cout << "Syntax Error" << endl;
+                    exit(1);
                 }
             } else {
                 cout << "Syntax Error" << endl;
+                exit(1);
             }
         } else {
             cout << "Syntax Error" << endl;
+            exit(1);
         }
     } else {
         cout << "Syntax Error" << endl;
+        exit(1);
     }
-    exit(1);
 }
 
 string ResolveVariable(string variableName) {
